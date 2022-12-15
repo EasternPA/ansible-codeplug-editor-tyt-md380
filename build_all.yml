@@ -64,34 +64,33 @@
       state: absent
 
 # Zones
+# Zone,Name,Channels
 # Note: comment out 1b, 2b, and 5b
 
   - name: Zones section header
     shell: '{{ blank_line }} && cat {{ dmr_dir }}/zones-header.conf >> {{ ans_dir }}/test.device.conf'
 
-  - name: Read zones
-    read_csv:
-      path: "{{ dmr_dir }}/zones.csv"
-      key: Zone
-    register: zones
-
-  - name: parse zones
+  - name: Create zone-list-parsed, not including the header line
+    vars:
+      zonelist: "{{ lookup('file', '{{ dmr_dir }}/zones.csv') | split('\n') }}"
     copy:
-      dest: '{{ ans_dir }}/zones-parsed.out'
+      dest: '{{ ans_dir }}/zonelist-parsed.out'
       content: |
-        {% for var in zones.dict | dict2items %}
-         {{ var.value.Zone }} {{ var.value.Name }} {{ var.value.Channels }}
+        {% for line in zonelist %}
+        {% if line.split(",")[0] != "Zone" %}
+         {{ line.split(",")[0] }} {{ line.split(",")[1] }} {{ line | regex_replace ('^([^,]*,){2}') }}
+        {% endif %}
         {% endfor %}
 
   - name: Zones column header line
     shell: "{{ blank_line }} && head -n 1 {{ dmr_dir }}/zones.csv | sed -e 's/,/ /g' >> {{ ans_dir }}/test.device.conf"
 
   - name: append parsed zones
-    shell: 'cat {{ ans_dir }}/zones-parsed.out >> {{ ans_dir }}/test.device.conf'
+    shell: 'cat {{ ans_dir }}/zonelist-parsed.out >> {{ ans_dir }}/test.device.conf'
 
   - name: rm parsed analog
     file:
-      path: '{{ ans_dir }}/zones-parsed.out'
+      path: '{{ ans_dir }}/zonelist-parsed.out'
       state: absent
 
 # Scan Lists
