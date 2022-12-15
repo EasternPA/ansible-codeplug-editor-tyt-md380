@@ -123,9 +123,35 @@
       path: '{{ ans_dir }}/scanlist-parsed.out'
       state: absent
 
-# Group Lists
+# Group Lists - ../group-list.csv
 # Grouplist,Name,Contacts
 # Note: space, columns 1-2, space, columns 3-
+
+  - name: Group List section header
+    shell: '{{ blank_line }} && cat {{ dmr_dir }}/group-lists-header.conf >> {{ ans_dir }}/test.device.conf'
+
+  - name: Create group-list-parsed, not including the header line
+    vars:
+      grouplist: "{{ lookup('file', '{{ dmr_dir }}/group-lists.csv') | split('\n') }}"
+    copy:
+      dest: '{{ ans_dir }}/grouplist-parsed.out'
+      content: |
+        {% for line in grouplist %}
+        {% if line.split(",")[0] != "Grouplist" %}
+         {{ line.split(",")[0] }} {{ line.split(",")[1] }} {{ line | regex_replace ('^([^,]*,){2}') }}
+        {% endif %}
+        {% endfor %}
+
+  - name: Group List column header line
+    shell: "{{ blank_line }} && head -n 1 {{ dmr_dir }}/group-lists.csv | sed -e 's/,/ /g' >> {{ ans_dir }}/test.device.conf"
+
+  - name: append parsed Group List
+    shell: 'cat {{ ans_dir }}/grouplist-parsed.out >> {{ ans_dir }}/test.device.conf'
+
+  - name: rm parsed Group List
+    file:
+      path: '{{ ans_dir }}/grouplist-parsed.out'
+      state: absent
 
 # Text Messages
 # Message,Text
