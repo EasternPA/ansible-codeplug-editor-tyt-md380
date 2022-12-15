@@ -94,7 +94,6 @@
       path: '{{ ans_dir }}/zones-parsed.out'
       state: absent
 
-
 # Scan Lists
 # Scanlist,Name,PCh1,PCh2,TxCh,Channels
 # Note: space, columns 1-2, space, 3-5, 6-
@@ -102,7 +101,7 @@
   - name: Scan List section header
     shell: '{{ blank_line }} && cat {{ dmr_dir }}/scan-lists-header.conf >> {{ ans_dir }}/test.device.conf'
 
-  - name: dump Scan list
+  - name: Create scan-list-parsed, not including the header line
     vars:
       scanlist: "{{ lookup('file', '{{ dmr_dir }}/scan-lists.csv') | split('\n') }}"
     copy:
@@ -110,42 +109,12 @@
       content: |
         {% for line in scanlist %}
         {% if line.split(",")[0] != "Scanlist" %}
-         {{ line.split(",")[0] }} {{ line.split(",")[1] }} {{ line.split(",")[2] }} {{ line.split(",")[3] }} {{ line.split(",")[4] }}
-        {% else %}
-        {{ line.split(",")[0] }} {{ line.split(",")[1] }} {{ line.split(",")[2] }} {{ line.split(",")[3] }} {{ line.split(",")[4] }} 
+         {{ line.split(",")[0] }} {{ line.split(",")[1] }} {{ line.split(",")[2] }} {{ line.split(",")[3] }} {{ line.split(",")[4] }} {{ line | regex_replace ('^([^,]*,){5}') }}
         {% endif %}
         {% endfor %}
 
-#      msg: '{{ scanlist[0].split(",")[0] }}'
-
-#  - name: Read Scan List
-#    read_csv:
-#      path: "{{ dmr_dir }}/scan-lists.csv"
-#      key: Scanlist
-#    register: scanlist
-
-#for i  in `seq 2 5`
-#do
-#  head -n $i scan-lists.csv | tail -n 1 | tee templine.tmp | echo -n ' '`cut -f1-5 -d, | sed -e 's/,/\t/g'` >> test.device.conf
-#  echo ' '`cut -f6- -d, templine.tmp` >> test.device.conf
-#  rm templine.tmp
-#done
-
-#  - name: parse Scan List
-#    copy:
-#      dest: '{{ ans_dir }}/scanlist-parsed.out'
-#      content: |
-#        {% for var in scanlist.dict | dict2items %}
-#         {{ var.value | split(',') }} 
-#        {% endfor %}
-
-# {{ var.value.Scanlist }} {{ var.value.Name }} {{ var.value.PCh1 }} {{ var.value.PCh2 }} {{ var.value.TxCh }} 
-# {{ var.value.Channels }}
-
   - name: Scan List column header line
-    shell: "{{ blank_line }}"
-
-# && head -n 1 {{ dmr_dir }}/scan-lists.csv | sed -e 's/,/ /g' >> {{ ans_dir }}/test.device.conf"
+    shell: "{{ blank_line }} && head -n 1 {{ dmr_dir }}/scan-lists.csv | sed -e 's/,/ /g' >> {{ ans_dir }}/test.device.conf"
 
   - name: append parsed Scan List
     shell: 'cat {{ ans_dir }}/scanlist-parsed.out >> {{ ans_dir }}/test.device.conf'
