@@ -1,0 +1,232 @@
+## Ansible header
+
+- name: Build codeplug
+  hosts: localhost
+  vars:
+    dmr_dir: /home/steve/hamradio/dmr
+    ans_dir: /home/steve/hamradio/dmr/ansible
+    blank_line: "echo >> {{ ans_dir }}/test.device.conf"
+
+
+  tasks:
+
+  - name: Set top of output file
+    shell: 'cat {{ dmr_dir }}/start.conf > {{ ans_dir }}/test.device.conf'
+
+  - name: Radio ID
+    shell: '{{ blank_line }} && cat {{ dmr_dir }}/radio-id.conf >> {{ ans_dir }}/test.device.conf'
+
+  - name: Analog section header
+    shell: '{{ blank_line }} && cat {{ dmr_dir }}/analog-header.conf >> {{ ans_dir }}/test.device.conf'
+
+  - name: Read analog
+    read_csv:
+      path: "{{ dmr_dir }}/analog.csv"
+      key: Analog
+    register: analog
+
+  - name: Analog column header
+    shell: "{{ blank_line }} && head -n 1 {{ dmr_dir }}/analog.csv | sed -e 's/,/ /g' >> {{ ans_dir }}/test.device.conf"
+
+  - name: parse Analog.csv
+    copy:
+      dest: '{{ ans_dir }}/analog-parsed.out'
+      content: |
+        {% for var in analog.dict | dict2items %}
+         {{ var.value.Analog }} {{ var.value.Name }} {{ var.value.Receive }} {{ var.value.Transmit }} {{ var.value.Power }} {{ var.value.Scan }} {{ var.value.TOT }} {{ var.value.RO }} {{ var.value.Admit }} {{ var.value.Sq }} {{ var.value.RxTone }} {{ var.value.TxTone}} {{ var.value.Width }}
+        {% endfor %}
+
+  - name: Read noaa-weather-radio
+    read_csv:
+      path: "{{ dmr_dir }}/noaa-weather-radio.csv"
+      key: Analog
+    register: nwr
+
+  - name: parse noaa-weather-radio
+    copy:
+      dest: '{{ ans_dir }}/nwr-parsed.out'
+      content: |
+        {% for var in nwr.dict | dict2items %}
+         {{ var.value.Analog }} {{ var.value.Name }} {{ var.value.Receive }} {{ var.value.Transmit }} {{ var.value.Power }} {{ var.value.Scan }} {{ var.value.TOT }} {{ var.value.RO }} {{ var.value.Admit }} {{ var.value.Sq }} {{ var.value.RxTone }} {{ var.value.TxTone}} {{ var.value.Width }}
+        {% endfor %}
+
+  - name: append parsed analog
+    shell: 'cat {{ ans_dir }}/analog-parsed.out {{ ans_dir }}/nwr-parsed.out >> {{ ans_dir }}/test.device.conf'
+
+  - name: rm parsed analog
+    file:
+      path: '{{ ans_dir }}/analog-parsed.out'
+      state: absent
+
+  - name: rm parsed nwr
+    file:
+      path: '{{ ans_dir }}/nwr-parsed.out'
+      state: absent
+
+# Zones
+# Zone,Name,Channels
+# Note: comment out 1b, 2b, and 5b
+
+  - name: Zones section header
+    shell: '{{ blank_line }} && cat {{ dmr_dir }}/zones-header.conf >> {{ ans_dir }}/test.device.conf'
+
+  - name: Create zone-list-parsed, not including the header line
+    vars:
+      zonelist: "{{ lookup('file', '{{ dmr_dir }}/zones.csv') | split('\n') }}"
+    copy:
+      dest: '{{ ans_dir }}/zonelist-parsed.out'
+      content: |
+        {% for line in zonelist %}
+        {% if line.split(",")[0] != "Zone" %}
+         {{ line.split(",")[0] }} {{ line.split(",")[1] }} {{ line | regex_replace ('^([^,]*,){2}') }}
+        {% endif %}
+        {% endfor %}
+
+  - name: Zones column header line
+    shell: "{{ blank_line }} && head -n 1 {{ dmr_dir }}/zones.csv | sed -e 's/,/ /g' >> {{ ans_dir }}/test.device.conf"
+
+  - name: append parsed zones
+    shell: 'cat {{ ans_dir }}/zonelist-parsed.out >> {{ ans_dir }}/test.device.conf'
+
+  - name: rm parsed analog
+    file:
+      path: '{{ ans_dir }}/zonelist-parsed.out'
+      state: absent
+
+
+# Scan Lists
+# Scanlist,Name,PCh1,PCh2,TxCh,Channels
+# Note: space, columns 1-2, space, 3-5, 6-
+
+  - name: Scan List section header
+    shell: '{{ blank_line }} && cat {{ dmr_dir }}/scan-lists-header.conf >> {{ ans_dir }}/test.device.conf'
+
+  - name: Create scan-list-parsed, not including the header line
+    vars:
+      scanlist: "{{ lookup('file', '{{ dmr_dir }}/scan-lists.csv') | split('\n') }}"
+    copy:
+      dest: '{{ ans_dir }}/scanlist-parsed.out'
+      content: |
+        {% for line in scanlist %}
+        {% if line.split(",")[0] != "Scanlist" %}
+         {{ line.split(",")[0] }} {{ line.split(",")[1] }} {{ line.split(",")[2] }} {{ line.split(",")[3] }} {{ line.split(",")[4] }} {{ line | regex_replace ('^([^,]*,){5}') }}
+        {% endif %}
+        {% endfor %}
+
+  - name: Scan List column header line
+    shell: "{{ blank_line }} && head -n 1 {{ dmr_dir }}/scan-lists.csv | sed -e 's/,/ /g' >> {{ ans_dir }}/test.device.conf"
+
+  - name: append parsed Scan List
+    shell: 'cat {{ ans_dir }}/scanlist-parsed.out >> {{ ans_dir }}/test.device.conf'
+
+  - name: rm parsed Scan List
+    file:
+      path: '{{ ans_dir }}/scanlist-parsed.out'
+      state: absent
+
+# Group Lists - ../group-list.csv
+# Grouplist,Name,Contacts
+# Note: space, columns 1-2, space, columns 3-
+
+  - name: Group List section header
+    shell: '{{ blank_line }} && cat {{ dmr_dir }}/group-lists-header.conf >> {{ ans_dir }}/test.device.conf'
+
+  - name: Create group-list-parsed, not including the header line
+    vars:
+      grouplist: "{{ lookup('file', '{{ dmr_dir }}/group-lists.csv') | split('\n') }}"
+    copy:
+      dest: '{{ ans_dir }}/grouplist-parsed.out'
+      content: |
+        {% for line in grouplist %}
+        {% if line.split(",")[0] != "Grouplist" %}
+         {{ line.split(",")[0] }} {{ line.split(",")[1] }} {{ line | regex_replace ('^([^,]*,){2}') }}
+        {% endif %}
+        {% endfor %}
+
+  - name: Group List column header line
+    shell: "{{ blank_line }} && head -n 1 {{ dmr_dir }}/group-lists.csv | sed -e 's/,/ /g' >> {{ ans_dir }}/test.device.conf"
+
+  - name: append parsed Group List
+    shell: 'cat {{ ans_dir }}/grouplist-parsed.out >> {{ ans_dir }}/test.device.conf'
+
+  - name: rm parsed Group List
+    file:
+      path: '{{ ans_dir }}/grouplist-parsed.out'
+      state: absent
+
+# Text Messages
+# Message,Text
+
+
+# Digital Channels
+#echo >> test.device.conf
+#cat digital-channels-header.conf >> test.device.conf
+#echo >> test.device.conf
+# 
+# for loop to convert all-tgif-channels.csv into TYT channel format
+
+#head -n 1185 all-tgif-channels.csv | tail -n 1184 > only-channel-names.csv
+
+#echo Digital,Name,Receive,Transmit,Power,Scan,TOT,RO,Admit,Color,Slot,RxGL,TxContact > test-tgif-channels.csv
+
+#for i in `seq 1 1185`
+#do
+#  echo ' '$i,`tail -n 1186 only-channel-names.csv | head -n $i | tail -n 1 | cut -f2 -d\, | cut -c2- | sed -e "s/ /_/g" | sed -e "s/\#//g" | cut -c1-16`, 434.400,\+5,Low,1,120,\-,Color,1,1,1,$i,\#`tail -n 1186 only-channel-names.csv | head -n $i | tail -n 1 | cut -f1 -d\,``tail -n 1186 only-channel-names.csv | cut -f2 -d\, | head -n $i | tail -n 1` >> test-tgif-channels.csv
+
+#done
+
+#sed -i 's/_,/ ,/g' test-tgif-channels.csv
+#sed -i 's/_ ,//g' test-tgif-channels.csv
+
+# sed to expand TYT channel csv into space separated format and append to test.device.conf
+
+#sed -e 's/,/\t/g' test-tgif-channels.csv >> test.device.conf 
+
+# Contacts
+#echo >> test.device.conf
+#cat table-of-contacts-header.conf >> test.device.conf
+#echo >> test.device.conf
+#
+# for loop to convert all-tgif-channels.csv into TYT contact format
+
+#echo Contact,Name,Type,ID,RxTone > test-tgif-contacts.csv
+
+#for i in `seq 1 1185`
+#do
+#  echo ' '$i,`tail -n 1186 only-channel-names.csv | head -n $i | tail -n 1 | cut -f2 -d\, | cut -c2- | sed -e "s/ /_/g" | sed -e "s/\#//g" | cut -c1-16`, Group,`tail -n 1186 only-channel-names.csv | head -n $i | tail -n 1 | cut -f1 -d\,`,\- | head -n $i | tail -n 1 >> test-tgif-contacts.csv
+#done
+
+#rm only-channel-names.csv
+
+#sed -i 's/_,/,/g' test-tgif-contacts.csv
+#sed -i 's/_,/,/g' test-tgif-contacts.csv
+
+# sed to expand TYT contact csv into space separated format and append to test.device.conf
+
+#sed -e 's/,/\t/g' test-tgif-contacts.csv >> test.device.conf
+
+##################### End of bash / Start of Ansible ###########################
+
+  - name: cat test.device.conf aka codeplug
+    shell: 'cat {{ ans_dir }}/test.device.conf'
+    register: codeplug
+
+  - name: dump codeplug
+    debug:
+      var: codeplug.stdout_lines
+
+        #        msg: "{{ messages.list|map(attribute='Text')|list }}"
+        #        msg: "Message {{ messages.list.0.Message }} is {{ messages.list.0.Text }}"
+
+
+# Change a line in a file specifying the search pattern in regexp and the new version in line
+# ansible localhost -b -m lineinfile -a "path=/etc/default/crda regexp='^REGDOMAIN=' line='REGDOMAIN=US'"
+
+# see Jinja templates
+# https://jinja.palletsprojects.com/en/2.11.x/
+
+# then use the ansible template module output the file
+# https://docs.ansible.com/ansible/latest/collections/ansible/builtin/template_module.html
+
+# https://github.com/jpmens/ansible-jinja2-templates/blob/master/proxy-list-script.md
+
