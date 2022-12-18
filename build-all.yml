@@ -1,10 +1,10 @@
 ## Ansible header
 
 - name: Build codeplug
-  hosts: localhost
+  hosts: hamradio
   vars:
     dmr_dir: /home/steve/hamradio/dmr
-    ans_dir: /home/steve/hamradio/dmr/ansible
+    ans_dir: /home/steve/hamradio/dmr/md380-codeplug-ansible
     blank_line: "echo >> {{ ans_dir }}/test.device.conf"
 
 
